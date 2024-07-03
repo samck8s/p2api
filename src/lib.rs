@@ -344,7 +344,7 @@ impl<'a> Transpiler<'a> {
                     let key = param.key.as_ref().map_or("", String::as_str);
                     let value = param.value.as_ref().map_or("", String::as_str);
 
-                    if value.is_empty() || key.is_empty() {
+                    if value.is_empty() {
                         None // Skip this parameter
                     } else {
                         Some(format!("{}={}", key, value))
