@@ -1,19 +1,18 @@
 use std::fs::File;
 use std::io::prelude::*;
 
-
 macro_rules! test_fixture {
     ($name:ident, $filename:expr) => {
         #[test]
         fn $name() {
             let filename = get_fixture($filename);
-                let options = postman2openapi::TranspileOptions {
-                    format: postman2openapi::TargetFormat::Json,
-                };
+            let options = postman2openapi::TranspileOptions {
+                format: postman2openapi::TargetFormat::Json,
+            };
             match postman2openapi::from_path(&filename, options) {
                 Ok(_oas) => {
-                   // Specify the target file path convert filename to filename_oas.json
-                   let file_path = filename.replace("postman.json", "oas.json");
+                    // Specify the target file path convert filename to filename_oas.json
+                    let file_path = filename.replace("postman.json", "oas.json");
 
                     // Remove file if it exists
                     std::fs::remove_file(file_path.clone()).unwrap_or_default();
@@ -26,10 +25,10 @@ macro_rules! test_fixture {
                         Ok(_) => assert!(true),
                         Err(err) => assert!(false, "{:?}", err),
                     }
-                },
+                }
                 Err(err) => {
                     assert!(false, "{:?}", err);
-                },
+                }
             }
         }
     };

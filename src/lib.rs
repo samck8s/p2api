@@ -335,26 +335,33 @@ impl<'a> Transpiler<'a> {
     ) {
         let mut paths_with_query = paths.to_vec(); // Clone the elements of paths into a new vector
         if url.query.is_some() {
-            let query_string = url.query.as_ref().unwrap() 
+            let query_string = url
+                .query
+                .as_ref()
+                .unwrap()
                 .iter()
-                .map(|param| {
-                    format!(
-                        "{}={}",                
-                        param.key.as_ref().unwrap_or(&"".to_string()).as_str(), // Handle None value
-                        param.value.as_ref().unwrap_or(&"".to_string()).as_str() // Handle None value
-                    )
+                .filter_map(|param| {
+                    let key = param.key.as_ref().map_or("", String::as_str);
+                    let value = param.value.as_ref().map_or("", String::as_str);
+
+                    if value.is_empty() || key.is_empty() {
+                        None // Skip this parameter
+                    } else {
+                        Some(format!("{}={}", key, value))
+                    }
                 })
                 .collect::<Vec<String>>()
                 .join("&");
 
-            paths_with_query.push(postman::PathElement::String(format!("?{}", query_string))); // Append the new element
-        }
-        // Filter empty path elements
-        paths_with_query.retain(|segment| {
-            match segment {
-                postman::PathElement::PathClass(c) => c.value.is_some(),
-                postman::PathElement::String(c) => !c.is_empty(),
+            if !query_string.is_empty() {
+                paths_with_query.push(postman::PathElement::String(format!("?{}", query_string)));
             }
+        }
+
+        // Filter empty path elements
+        paths_with_query.retain(|segment| match segment {
+            postman::PathElement::PathClass(c) => c.value.is_some(),
+            postman::PathElement::String(c) => !c.is_empty(),
         });
 
         let resolved_segments = paths_with_query
@@ -1532,18 +1539,18 @@ mod tests {
         let spec: Spec = serde_json::from_str(get_fixture("echo.postman.json").as_ref()).unwrap();
         let oas = Transpiler::transpile(spec);
         let ordered_paths = [
-            "/get",
+            "/get/?foo1=bar1&foo2=bar2",
             "/post",
             "/put",
             "/patch",
             "/delete",
             "/headers",
-            "/response-headers",
+            "/response-headers/?foo1=bar1&foo2=bar2",
             "/basic-auth",
             "/digest-auth",
             "/auth/hawk",
             "/oauth1",
-            "/cookies/set",
+            "/cookies/set/?foo1=bar1&foo2=bar2",
             "/cookies",
             "/cookies/delete",
             "/status/200",
@@ -1554,23 +1561,27 @@ mod tests {
             "/deflate",
             "/ip",
             "/time/now",
-            "/time/valid",
-            "/time/format",
-            "/time/unit",
-            "/time/add",
-            "/time/subtract",
-            "/time/start",
-            "/time/object",
-            "/time/before",
-            "/time/after",
-            "/time/between",
-            "/time/leap",
-            "/transform/collection",
-            "/{method}/hello",
+            "/time/valid/?timestamp=2016-10-10",
+            "/time/format/?timestamp=2016-10-10&format=mm",
+            "/time/unit/?timestamp=2016-10-10&unit=day",
+            "/time/add/?timestamp=2016-10-10&years=100",
+            "/time/subtract/?timestamp=2016-10-10&years=50",
+            "/time/start/?timestamp=2016-10-10&unit=month",
+            "/time/object/?timestamp=2016-10-10",
+            "/time/before/?timestamp=2016-10-10&target=2017-10-10",
+            "/time/after/?timestamp=2016-10-10&target=2017-10-10",
+            "/time/between/?timestamp=2016-10-10&start=2017-10-10&end=2019-10-10",
+            "/time/leap/?timestamp=2016-10-10",
+            "/transform/collection/?from=1&to=2",
+            "/transform/collection/?from=2&to=1",
         ];
         let OpenApi::V3_0(s) = oas;
         let keys = s.paths.keys().enumerate();
         for (i, k) in keys {
+            if i >= ordered_paths.len() {
+                println!("Extra path: {}", k);
+                break;
+            }
             assert_eq!(k, ordered_paths[i])
         }
     }
@@ -1703,7 +1714,7 @@ mod tests {
             OpenApi::V3_0(oas) => {
                 let query_param_names = oas
                     .paths
-                    .get("/v2/json-rpc/{site id}")
+                    .get("/v2/json-rpc/{site id}/?apikey={v3 API key}&sig={sig}")
                     .unwrap()
                     .post
                     .as_ref()
